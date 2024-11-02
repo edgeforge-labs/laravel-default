@@ -1,0 +1,40 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: laravel-meti-be
+  namespace: default
+spec:
+  secretName: laravel-meti-be
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: laravel.meti.be
+  dnsNames:
+  - laravel.meti.be
+
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  name: laravel
+  namespace: default
+spec:
+  rules:
+  - host: laravel.meti.be
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: laravel-service
+            port:
+              number: 80
+  tls:
+  - hosts:
+     - laravel.meti.be
+    secretName: laravel-meti-be

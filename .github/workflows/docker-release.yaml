@@ -1,0 +1,60 @@
+# This action leverages Gitversion to release ( build, tag and publish ) a docker container
+name: Build and Publish Docker Image
+
+permissions:
+  id-token: write
+  contents: write
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'website/**'  # this only triggers pipeline when updates to path dir are made
+  workflow_dispatch:  # Allows manual triggering of the workflow
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history to use GitVersion
+          persist-credentials: true
+
+      # Step 2: Call our custom `GitVersion action` to tag the repo
+      - name: Tag with GitVersion
+        id: gitversion
+        uses: MKTHEPLUGG/gitversion-tag-action@v3
+        with:
+          configFilePath: gitversion.yml  # Path to your GitVersion config file
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+#      - name: "[DEBUG] - Print Working Dir"
+#        run : |
+#          pwd
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./website
+          push: true
+          tags: |
+            edgeforge/website:latest
+            edgeforge/website:${{ steps.gitversion.outputs.semVer }}
+            edgeforge/website:${{ github.sha }}
+          # platforms: linux/amd64,linux/arm64  # Optional: for multi-architecture support
+
+      - name: Log out from Docker Hub
+        run: docker logout
